@@ -184,7 +184,7 @@ public:
     // Provides key info, using a cache to dramatically improve the energy impact of smcFanControl
     kern_return_t SMCGetKeyInfo(UInt32 key, SMCKeyData_keyInfo_t* keyInfo, io_connect_t conn);
     kern_return_t SMCReadKey2(UInt32Char_t key, SMCVal_t *val,io_connect_t conn);
-    
+
     #pragma mark Command line only
     void smc_init();
     void smc_close();
@@ -198,6 +198,7 @@ public:
     float getFloatFromVal(SMCVal_t val);
     kern_return_t SMCPrintFans(void);
     kern_return_t SMCPrintTemps(void);
+    float SMCGetTemp(std::string core_value);
     void usage(char* prog);
     kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn);
 };

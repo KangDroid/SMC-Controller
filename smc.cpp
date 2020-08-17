@@ -606,6 +606,46 @@ kern_return_t SMC::SMCPrintTemps(void)
     return kIOReturnSuccess;
 }
 
+float SMC::SMCGetTemp(std::string core_value) {
+    kern_return_t result;
+    SMCKeyData_t  inputStructure;
+    SMCKeyData_t  outputStructure;
+
+    int           totalKeys;
+    UInt32Char_t  key;
+    SMCVal_t      val;
+    float return_value = -1.0;
+
+    totalKeys = SMCReadIndexCount();
+    for (int i = 0; i < totalKeys; i++)
+    {
+        memset(&inputStructure, 0, sizeof(SMCKeyData_t));
+        memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+        memset(&val, 0, sizeof(SMCVal_t));
+
+        inputStructure.data8 = SMC_CMD_READ_INDEX;
+        inputStructure.data32 = i;
+
+        result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+        if (result != kIOReturnSuccess) {
+            break;
+        }
+
+        _ultostr(key, outputStructure.key);
+        if (strcmp(key, core_value.c_str())) {
+            continue;
+        }
+
+        SMCReadKey(key, &val);
+        //printVal(val);
+        if (strcmp(val.dataType, DATATYPE_SP78) == 0 && val.dataSize == 2) {
+            return_value = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0;
+        }
+    }
+
+    return return_value;
+}
+
 void SMC::usage(char* prog)
 {
     printf("Apple System Management Control (SMC) tool %s\n", VERSION);
