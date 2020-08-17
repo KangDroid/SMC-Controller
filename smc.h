@@ -1,3 +1,6 @@
+#ifndef __SMC_H__
+#define __SMC_H__
+
 /*
  * Apple System Management Control (SMC) Tool
  * Copyright (C) 2006 devnull 
@@ -18,14 +21,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __SMC_H__
-#define __SMC_H__
-#endif
-
+#include <iostream>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <IOKit/IOKitLib.h>
 #include <libkern/OSAtomic.h>
 
@@ -81,6 +81,8 @@
 
 #define DATATYPE_PWM          "{pwm"
 
+#define KEY_INFO_CACHE_SIZE 100
+
 typedef struct {
     char                  major;
     char                  minor;
@@ -105,7 +107,7 @@ typedef struct {
 
 typedef unsigned char              SMCBytes_t[32];
 
-UInt8 fannum[] = "0123456789ABCDEFGHIJ";
+static UInt8 fannum[] = "0123456789ABCDEFGHIJ";
 
 typedef struct {
   UInt32                  key; 
@@ -128,16 +130,76 @@ typedef struct {
   SMCBytes_t              bytes;
 } SMCVal_t;
 
-UInt32 _strtoul(char *str, int size, int base);
-float _strtof(unsigned char *str, int size, int e);
+struct {
+    UInt32 key;
+    SMCKeyData_keyInfo_t keyInfo;
+} g_keyInfoCache[KEY_INFO_CACHE_SIZE];
 
-// Exclude command-line only code from smcFanControl UI
+class SMC {
+private:
+    int g_keyInfoCacheCount;
+    OSSpinLock g_keyInfoSpinLock;
+    io_connect_t g_conn;
+public:
+    SMC();
 
-void smc_init();
-void smc_close();
-kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t *val);
-kern_return_t SMCWriteSimple(UInt32Char_t key,char *wvalue,io_connect_t conn);
+    ~SMC();
 
-kern_return_t SMCOpen(io_connect_t *conn);
-kern_return_t SMCClose(io_connect_t conn);
-kern_return_t SMCReadKey2(UInt32Char_t key, SMCVal_t *val,io_connect_t conn);
+    #pragma mark C Helpers
+
+    UInt32 _strtoul(char *str, int size, int base);
+    void _ultostr(char *str, UInt32 val);
+    float _strtof(unsigned char *str, int size, int e);
+    void printFLT(SMCVal_t val);
+    void printFP1F(SMCVal_t val);
+    void printFP4C(SMCVal_t val);
+    void printFP5B(SMCVal_t val);
+    void printFP6A(SMCVal_t val);
+    void printFP79(SMCVal_t val);
+    void printFP88(SMCVal_t val);
+    void printFPA6(SMCVal_t val);
+    void printFPC4(SMCVal_t val);
+    void printFPE2(SMCVal_t val);
+    void printUInt(SMCVal_t val);
+    void printSP1E(SMCVal_t val);
+    void printSP3C(SMCVal_t val);
+    void printSP4B(SMCVal_t val);
+    void printSP5A(SMCVal_t val);
+    void printSP69(SMCVal_t val);
+    void printSP78(SMCVal_t val);
+    void printSP87(SMCVal_t val);
+    void printSP96(SMCVal_t val);
+    void printSPB4(SMCVal_t val);
+    void printSPF0(SMCVal_t val);
+    void printSI8(SMCVal_t val);
+    void printSI16(SMCVal_t val);
+    void printPWM(SMCVal_t val);
+    void printBytesHex(SMCVal_t val);
+    void printVal(SMCVal_t val);
+
+    #pragma mark Shared SMC functions
+    kern_return_t SMCOpen(io_connect_t *conn);
+    kern_return_t SMCClose(io_connect_t conn);
+    kern_return_t SMCCall2(int index, SMCKeyData_t *inputStructure, SMCKeyData_t *outputStructure,io_connect_t conn);
+    // Provides key info, using a cache to dramatically improve the energy impact of smcFanControl
+    kern_return_t SMCGetKeyInfo(UInt32 key, SMCKeyData_keyInfo_t* keyInfo, io_connect_t conn);
+    kern_return_t SMCReadKey2(UInt32Char_t key, SMCVal_t *val,io_connect_t conn);
+    
+    #pragma mark Command line only
+    void smc_init();
+    void smc_close();
+    kern_return_t SMCCall(int index, SMCKeyData_t *inputStructure, SMCKeyData_t *outputStructure);
+    kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t *val);
+    kern_return_t SMCWriteKey2(SMCVal_t writeVal, io_connect_t conn);
+    kern_return_t SMCWriteKey(SMCVal_t writeVal);
+    UInt32 SMCReadIndexCount(void);
+    kern_return_t SMCPrintAll(void);
+    //Fix me with other types
+    float getFloatFromVal(SMCVal_t val);
+    kern_return_t SMCPrintFans(void);
+    kern_return_t SMCPrintTemps(void);
+    void usage(char* prog);
+    kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn);
+};
+
+#endif // __SMC_H__
