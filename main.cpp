@@ -213,7 +213,7 @@ int main(void) {
         temp_container.push(core_temp);
         i++;
         cout << endl;
-        sleep(2);
+        sleep(4);
     }
     set_auto(smc_tmp);
     return 0;
