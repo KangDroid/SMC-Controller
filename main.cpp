@@ -1,5 +1,6 @@
 #include <iostream>
 #include "smc.h"
+#include "Tools.h"
 using namespace std;
 
 /**
@@ -72,27 +73,78 @@ int get_rpm(int min_rpm, int max_rpm, float percentage) {
     return (int)(min_rpm + (rpm_per_percentage*percentage));
 }
 
+void set_bytes(SMCVal_t* smc_value, string bits) {
+    int i;
+    char c[3];
+    for (i = 0; i < bits.length()/2; i++)
+    {
+        sprintf(c, "%c%c", bits.at(i*2), bits.at((i*2)+1));
+        smc_value->bytes[i] = (int) strtol(c, NULL, 16);
+    }
+    smc_value->dataSize = bits.length() / 2;
+    if ((smc_value->dataSize * 2) != bits.length())
+    {
+        printf("Error: value is not valid\n");
+        return;
+    }
+}
+
+// For MBP 2019 16" --> F0Md
+void set_key(SMCVal_t* smc_value, string force_key) {
+    sprintf(smc_value->key, force_key.c_str());
+}
+
+void set_auto(SMC& smc_object) {
+    SMCVal_t smc_value;
+    set_key(&smc_value, "F0Md");
+    set_bytes(&smc_value, "00");
+    smc_object.SMCWriteKey(smc_value);
+}
+
+void set_force(SMC& smc_object) {
+    SMCVal_t smc_value;
+    set_key(&smc_value, "F0Md");
+    set_bytes(&smc_value, "01");
+    smc_object.SMCWriteKey(smc_value);
+}
+
+void set_rpm(SMC& smc_object, int target_rpm) {
+    SMCVal_t smc_value;
+    Tools tmp_converter(target_rpm);
+    tmp_converter.to_bits();
+    set_key(&smc_value, "F0Tg");
+    set_bytes(&smc_value, tmp_converter.print_hex());
+    //cout << "Target HEX: " << tmp_converter.print_hex() << endl;
+    smc_object.SMCWriteKey(smc_value);
+}
+
 // This main function is for testing purpose
 int main(void) {
     SMC smc_tmp;
     float core_temp;
-    float minimum_core = 50.0;
+    float minimum_core = 10.0;
     float maximum_core = 80.0;
     int min_fan = 1836;
     int max_fan = 5616;
     int i = 0;
-    while (i < 10) {
+    set_force(smc_tmp);
+    while (i < 30) {
         core_temp = smc_tmp.SMCGetTemp("TC4C");
         if (core_temp == -1.0) {
             cout << "Error occured" << endl;
             return -1;
         }
-        cout << "Core Temp: " << core_temp << endl;
+        //cout << "Core Temp: " << core_temp << endl;
         float percentage_tmp = get_percentage(minimum_core, maximum_core, core_temp);
-        cout << "Percentage: " << percentage_tmp << endl;
-        cout << "Target RPM: " << get_rpm(min_fan, max_fan, percentage_tmp) << endl;
+        //cout << "Percentage: " << percentage_tmp << endl;
+        int rpm_target = get_rpm(min_fan, max_fan, percentage_tmp);
+        //cout << "Target RPM: " << rpm_target << endl;
+        set_rpm(smc_tmp, rpm_target);
         i++;
-        sleep(1);
+        //cout << endl;
+        i++;
+        sleep(2);
     }
+    set_auto(smc_tmp);
     return 0;
 }
