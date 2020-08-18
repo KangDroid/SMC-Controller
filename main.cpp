@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stack>
 #include "smc.h"
 #include "Tools.h"
 using namespace std;
@@ -55,6 +56,10 @@ using namespace std;
     Ts1S 36.094 
     Ts2S 34.609 
 */
+
+// RPM Container
+stack<int> rpm_container;
+stack<int> temp_container;
 
 // Get percentage from temp
 float get_percentage(float min, float max, float cur) {
@@ -118,12 +123,58 @@ void set_force(SMC& smc_object) {
 
 void set_rpm(SMC& smc_object, int target_rpm) {
     SMCVal_t smc_value;
-    Tools tmp_converter(target_rpm);
-    tmp_converter.to_bits();
+    Tools tmp_converter(target_rpm); tmp_converter.to_bits();
+    int gradual_increase = 10;
+
+    // Set key on SMCValue
     set_key(&smc_value, "F0Tg");
-    set_bytes(&smc_value, tmp_converter.print_hex());
-    //cout << "Target HEX: " << tmp_converter.print_hex() << endl;
-    smc_object.SMCWriteKey(smc_value);
+
+    // For Gradual Increase
+    if (rpm_container.size() != 0) {
+        int prev_rpm = rpm_container.top(); rpm_container.pop();
+        int increase_check = abs(target_rpm - prev_rpm);
+        if (increase_check == 0) {
+            return;
+        } else if (increase_check < 20) {
+            gradual_increase = 2;
+        } else if (increase_check < 150) {
+            gradual_increase = 10; 
+        } else if (increase_check < 600) {
+            gradual_increase = 50;
+        } else if (increase_check < 2500) {
+            gradual_increase = 200;
+        } else {
+            gradual_increase = 500;
+        }
+        int determin_sign = target_rpm - prev_rpm;
+        int to_iterate = increase_check / gradual_increase;
+        if (increase_check % gradual_increase != 0) {
+            to_iterate++;
+        }
+        // TMP
+        int tmp_rpm = prev_rpm;
+        for (int i = 0; i < to_iterate; i++) {
+            if (determin_sign < 0) {
+                tmp_rpm = tmp_rpm - gradual_increase;
+            } else if (determin_sign > 0) {
+                tmp_rpm = tmp_rpm + gradual_increase;
+            }
+            Tools bits_converter(tmp_rpm); bits_converter.to_bits();
+            if (i == to_iterate - 1) {
+                Tools tmp_cv(target_rpm); tmp_cv.to_bits();
+                set_bytes(&smc_value, tmp_cv.print_hex());
+            } else {
+                set_bytes(&smc_value, bits_converter.print_hex());
+            }
+            smc_object.SMCWriteKey(smc_value);
+            // Sleep 0.5s
+            usleep(500000);
+        }
+    } else {
+        cout << "EMpty on stack" << endl;
+        set_bytes(&smc_value, tmp_converter.print_hex());
+        smc_object.SMCWriteKey(smc_value);
+    }
 }
 
 // This main function is for testing purpose
@@ -136,11 +187,21 @@ int main(void) {
     int max_fan = 5616;
     int i = 0;
     set_force(smc_tmp);
-    while (i < 30) {
+    while (i < 60) {
         core_temp = smc_tmp.SMCGetTemp();
         if (core_temp == -1.0) {
             cout << "Error occured" << endl;
             return -1;
+        }
+        if (temp_container.size() != 0) {
+            int tmp_ct = temp_container.top();
+            if (abs(core_temp - tmp_ct) < 3) {
+                cout << "Skipping, Core Temp: " << core_temp << endl;
+                cout << "Previous: " << tmp_ct << endl;
+                i++;
+                sleep(2);
+                continue;
+            }
         }
         cout << "Core Temp: " << core_temp << endl;
         float percentage_tmp = get_percentage(minimum_core, maximum_core, core_temp);
@@ -148,6 +209,8 @@ int main(void) {
         int rpm_target = get_rpm(min_fan, max_fan, percentage_tmp);
         cout << "Target RPM: " << rpm_target << endl;
         set_rpm(smc_tmp, rpm_target);
+        rpm_container.push(rpm_target);
+        temp_container.push(core_temp);
         i++;
         cout << endl;
         sleep(2);
