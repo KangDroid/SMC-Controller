@@ -29,6 +29,8 @@
 #include <IOKit/IOKitLib.h>
 #include <libkern/OSAtomic.h>
 
+using namespace std;
+
 #define CMD_TOOL
 #define VERSION               "0.01"
 
@@ -130,6 +132,11 @@ typedef struct {
   SMCBytes_t              bytes;
 } SMCVal_t;
 
+typedef struct {
+    string temperature_watch;
+    int found_idx;
+} PredefTemp_t;
+
 struct {
     UInt32 key;
     SMCKeyData_keyInfo_t keyInfo;
@@ -140,8 +147,12 @@ private:
     int g_keyInfoCacheCount;
     OSSpinLock g_keyInfoSpinLock;
     io_connect_t g_conn;
+    PredefTemp_t temp_watch;
 public:
-    SMC();
+    #pragma mark Init Functions
+
+    SMC(string to_watch);
+    void find_index_temp();
 
     ~SMC();
 
@@ -198,7 +209,7 @@ public:
     float getFloatFromVal(SMCVal_t val);
     kern_return_t SMCPrintFans(void);
     kern_return_t SMCPrintTemps(void);
-    float SMCGetTemp(std::string core_value);
+    float SMCGetTemp();
     void usage(char* prog);
     kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn);
 };

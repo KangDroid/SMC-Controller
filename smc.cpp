@@ -1,10 +1,46 @@
 #include "smc.h"
 
-SMC::SMC() {
+SMC::SMC(string to_watch) {
     this->g_keyInfoCacheCount = 0;
     this->g_keyInfoSpinLock = 0;
     this->g_conn = 0;
+    this->temp_watch.temperature_watch = to_watch;
+    this->temp_watch.found_idx = -1;
     this->smc_init();
+    this->find_index_temp();
+}
+
+void SMC::find_index_temp() {
+    kern_return_t result;
+    SMCKeyData_t  inputStructure;
+    SMCKeyData_t  outputStructure;
+
+    int           totalKeys;
+    UInt32Char_t  key;
+    SMCVal_t      val;
+
+    totalKeys = SMCReadIndexCount();
+    for (int i = 0; i < totalKeys; i++)
+    {
+        memset(&inputStructure, 0, sizeof(SMCKeyData_t));
+        memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+        memset(&val, 0, sizeof(SMCVal_t));
+
+        inputStructure.data8 = SMC_CMD_READ_INDEX;
+        inputStructure.data32 = i;
+
+        result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+        if (result != kIOReturnSuccess) {
+            break;
+        }
+
+        _ultostr(key, outputStructure.key);
+        if (!strcmp(key, temp_watch.temperature_watch.c_str())) {
+            cout << "Found!" << endl;
+            temp_watch.found_idx = i;
+            break;
+        }
+    }
 }
 
 SMC::~SMC() {
@@ -606,7 +642,7 @@ kern_return_t SMC::SMCPrintTemps(void)
     return kIOReturnSuccess;
 }
 
-float SMC::SMCGetTemp(std::string core_value) {
+float SMC::SMCGetTemp() {
     kern_return_t result;
     SMCKeyData_t  inputStructure;
     SMCKeyData_t  outputStructure;
@@ -616,30 +652,53 @@ float SMC::SMCGetTemp(std::string core_value) {
     SMCVal_t      val;
     float return_value = -1.0;
 
-    totalKeys = SMCReadIndexCount();
-    for (int i = 0; i < totalKeys; i++)
-    {
+    if (temp_watch.found_idx != -1) {
         memset(&inputStructure, 0, sizeof(SMCKeyData_t));
         memset(&outputStructure, 0, sizeof(SMCKeyData_t));
         memset(&val, 0, sizeof(SMCVal_t));
 
         inputStructure.data8 = SMC_CMD_READ_INDEX;
-        inputStructure.data32 = i;
+        inputStructure.data32 = temp_watch.found_idx;
 
         result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
         if (result != kIOReturnSuccess) {
-            break;
+            return return_value;
         }
 
         _ultostr(key, outputStructure.key);
-        if (strcmp(key, core_value.c_str())) {
-            continue;
-        }
 
         SMCReadKey(key, &val);
         //printVal(val);
         if (strcmp(val.dataType, DATATYPE_SP78) == 0 && val.dataSize == 2) {
             return_value = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0;
+        }
+    } else {
+        cout << "init failed somehow" << endl;
+        totalKeys = SMCReadIndexCount();
+        for (int i = 0; i < totalKeys; i++)
+        {
+            memset(&inputStructure, 0, sizeof(SMCKeyData_t));
+            memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+            memset(&val, 0, sizeof(SMCVal_t));
+
+            inputStructure.data8 = SMC_CMD_READ_INDEX;
+            inputStructure.data32 = i;
+
+            result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+            if (result != kIOReturnSuccess) {
+                break;
+            }
+
+            _ultostr(key, outputStructure.key);
+            if (strcmp(key, temp_watch.temperature_watch.c_str())) {
+                continue;
+            }
+
+            SMCReadKey(key, &val);
+            //printVal(val);
+            if (strcmp(val.dataType, DATATYPE_SP78) == 0 && val.dataSize == 2) {
+                return_value = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0;
+            }
         }
     }
 

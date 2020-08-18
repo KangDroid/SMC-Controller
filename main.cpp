@@ -70,7 +70,15 @@ int get_rpm(int min_rpm, int max_rpm, float percentage) {
     // min = 1836, max = 5616
     int subs = max_rpm - min_rpm;
     float rpm_per_percentage = subs / 100.0;
-    return (int)(min_rpm + (rpm_per_percentage*percentage));
+    int target = (int)(min_rpm + (rpm_per_percentage*percentage));
+    if (target < min_rpm) {
+        target = min_rpm;
+    }
+
+    if (target > max_rpm) {
+        target = max_rpm;
+    }
+    return target;
 }
 
 void set_bytes(SMCVal_t* smc_value, string bits) {
@@ -120,7 +128,7 @@ void set_rpm(SMC& smc_object, int target_rpm) {
 
 // This main function is for testing purpose
 int main(void) {
-    SMC smc_tmp;
+    SMC smc_tmp("TC4C");
     float core_temp;
     float minimum_core = 10.0;
     float maximum_core = 80.0;
@@ -129,20 +137,19 @@ int main(void) {
     int i = 0;
     set_force(smc_tmp);
     while (i < 30) {
-        core_temp = smc_tmp.SMCGetTemp("TC4C");
+        core_temp = smc_tmp.SMCGetTemp();
         if (core_temp == -1.0) {
             cout << "Error occured" << endl;
             return -1;
         }
-        //cout << "Core Temp: " << core_temp << endl;
+        cout << "Core Temp: " << core_temp << endl;
         float percentage_tmp = get_percentage(minimum_core, maximum_core, core_temp);
-        //cout << "Percentage: " << percentage_tmp << endl;
+        cout << "Percentage: " << percentage_tmp << endl;
         int rpm_target = get_rpm(min_fan, max_fan, percentage_tmp);
-        //cout << "Target RPM: " << rpm_target << endl;
+        cout << "Target RPM: " << rpm_target << endl;
         set_rpm(smc_tmp, rpm_target);
         i++;
-        //cout << endl;
-        i++;
+        cout << endl;
         sleep(2);
     }
     set_auto(smc_tmp);
