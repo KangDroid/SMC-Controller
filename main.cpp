@@ -181,7 +181,7 @@ void set_rpm(SMC& smc_object, int target_rpm) {
 int main(void) {
     SMC smc_tmp("TC4C");
     float core_temp;
-    float minimum_core = 10.0;
+    float minimum_core = 50.0;
     float maximum_core = 80.0;
     int min_fan = 1836;
     int max_fan = 5616;
@@ -195,7 +195,7 @@ int main(void) {
         }
         if (temp_container.size() != 0) {
             int tmp_ct = temp_container.top();
-            if (abs(core_temp - tmp_ct) < 3) {
+            if (abs(core_temp - tmp_ct) < 2) {
                 cout << "Skipping, Core Temp: " << core_temp << endl;
                 cout << "Previous: " << tmp_ct << endl;
                 i++;
