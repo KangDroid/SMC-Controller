@@ -58,8 +58,8 @@ using namespace std;
 */
 
 // RPM Container
-stack<int> rpm_container;
-stack<int> temp_container;
+int rpm_container;
+int temp_container;
 
 // Get percentage from temp
 float get_percentage(float min, float max, float cur) {
@@ -130,9 +130,8 @@ void set_rpm(SMC& smc_object, int target_rpm) {
     set_key(&smc_value, "F0Tg");
 
     // For Gradual Increase
-    if (rpm_container.size() != 0) {
-        int prev_rpm = rpm_container.top(); rpm_container.pop();
-        int increase_check = abs(target_rpm - prev_rpm);
+    if (rpm_container != 0) {
+        int increase_check = abs(target_rpm - rpm_container);
         if (increase_check == 0) {
             return;
         } else if (increase_check < 20) {
@@ -146,13 +145,13 @@ void set_rpm(SMC& smc_object, int target_rpm) {
         } else {
             gradual_increase = 500;
         }
-        int determin_sign = target_rpm - prev_rpm;
+        int determin_sign = target_rpm - rpm_container;
         int to_iterate = increase_check / gradual_increase;
         if (increase_check % gradual_increase != 0) {
             to_iterate++;
         }
         // TMP
-        int tmp_rpm = prev_rpm;
+        int tmp_rpm = rpm_container;
         for (int i = 0; i < to_iterate; i++) {
             if (determin_sign < 0) {
                 tmp_rpm = tmp_rpm - gradual_increase;
@@ -187,17 +186,16 @@ int main(void) {
     int max_fan = 5616;
     int i = 0;
     set_force(smc_tmp);
-    while (i < 60) {
+    while (i < 30) {
         core_temp = smc_tmp.SMCGetTemp();
         if (core_temp == -1.0) {
             cout << "Error occured" << endl;
             return -1;
         }
-        if (temp_container.size() != 0) {
-            int tmp_ct = temp_container.top();
-            if (abs(core_temp - tmp_ct) < 2) {
+        if (temp_container != 0) {
+            if (abs(core_temp - temp_container) < 2) {
                 cout << "Skipping, Core Temp: " << core_temp << endl;
-                cout << "Previous: " << tmp_ct << endl;
+                cout << "Previous: " << temp_container << endl;
                 i++;
                 sleep(2);
                 continue;
@@ -209,8 +207,8 @@ int main(void) {
         int rpm_target = get_rpm(min_fan, max_fan, percentage_tmp);
         cout << "Target RPM: " << rpm_target << endl;
         set_rpm(smc_tmp, rpm_target);
-        rpm_container.push(rpm_target);
-        temp_container.push(core_temp);
+        rpm_container = rpm_target;
+        temp_container = core_temp;
         i++;
         cout << endl;
         sleep(4);
