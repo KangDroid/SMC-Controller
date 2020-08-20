@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stack>
+#include <csignal>
 #include "smc.h"
 #include "Tools.h"
 using namespace std;
@@ -176,8 +177,17 @@ void set_rpm(SMC& smc_object, int target_rpm) {
     }
 }
 
+void signal_handler(int signum) {
+    cout << "Signal: " << signum << " Detected!" << endl;
+    cout << "Cleaning up..." << endl;
+    SMC smc_tmp("TC4C");
+    set_auto(smc_tmp);
+    exit(signum);
+}
+
 // This main function is for testing purpose
 int main(void) {
+    signal(SIGINT, signal_handler);
     SMC smc_tmp("TC4C");
     float core_temp;
     float minimum_core = 50.0;
