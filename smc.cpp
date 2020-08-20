@@ -10,6 +10,14 @@ SMC::SMC(string to_watch) {
     this->find_index_temp();
 }
 
+SMC::SMC() {
+    this->g_keyInfoCacheCount = 0;
+    this->g_keyInfoSpinLock = 0;
+    this->g_conn = 0;
+    this->temp_watch.found_idx = -1;
+    this->smc_init();
+}
+
 void SMC::find_index_temp() {
     kern_return_t result;
     SMCKeyData_t  inputStructure;
@@ -740,4 +748,8 @@ kern_return_t SMC::SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t c
     
     
     return result;
+}
+
+void SMC::set_temp_watch(string what) {
+    this->temp_watch.temperature_watch = what;
 }

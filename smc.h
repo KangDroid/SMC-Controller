@@ -152,6 +152,7 @@ public:
     #pragma mark Init Functions
 
     SMC(string to_watch);
+    SMC();
     void find_index_temp();
 
     ~SMC();
@@ -212,6 +213,7 @@ public:
     float SMCGetTemp();
     void usage(char* prog);
     kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn);
+    void set_temp_watch(string what);
 };
 
 #endif // __SMC_H__

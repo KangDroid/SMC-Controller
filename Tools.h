@@ -1,3 +1,6 @@
+#ifndef __TOOLS_H__
+#define __TOOLS_H__
+
 #include <iostream>
 #include <cstdio> 
 #include <cmath>
@@ -22,3 +25,4 @@ public:
     string bin_to_dec(string bits, int bitidx);
     string print_hex();
 };
+#endif // __TOOLS_H__
